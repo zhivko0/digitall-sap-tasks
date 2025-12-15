@@ -48,7 +48,7 @@ kubectl -n cert-checker get cronjobs
 ## Config File Format
 
 ```
-# comments start with #
+# comment
 google.com
 github.com
 mysite.com:8443
