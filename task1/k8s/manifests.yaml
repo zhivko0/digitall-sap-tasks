@@ -1,0 +1,104 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cert-checker
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cert-checker-config
+  namespace: cert-checker
+data:
+  sites.conf: |
+    # Sites to monitor
+    google.com
+    github.com
+    amazon.com
+    cloudflare.com
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cert-checker-env
+  namespace: cert-checker
+data:
+  WARN_DAYS: "30"
+  CRIT_DAYS: "7"
+  # SLACK_WEBHOOK: "https://hooks.slack.com/services/xxx/yyy/zzz"
+
+---
+# CronJob - runs every 6 hours
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cert-checker
+  namespace: cert-checker
+spec:
+  schedule: "0 */6 * * *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          dnsPolicy: "None"
+          dnsConfig:
+            nameservers:
+              - 8.8.8.8
+              - 8.8.4.4
+          containers:
+          - name: cert-checker
+            image: cert-checker:latest
+            imagePullPolicy: IfNotPresent
+            envFrom:
+            - configMapRef:
+                name: cert-checker-env
+            env:
+            - name: CONFIG_FILE
+              value: /etc/cert-checker/sites.conf
+            volumeMounts:
+            - name: config
+              mountPath: /etc/cert-checker
+          volumes:
+          - name: config
+            configMap:
+              name: cert-checker-config
+          restartPolicy: OnFailure
+
+---
+# One-time Job for testing
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cert-checker-test
+  namespace: cert-checker
+spec:
+  template:
+    spec:
+      dnsPolicy: "None"
+      dnsConfig:
+        nameservers:
+          - 8.8.8.8
+          - 8.8.4.4
+      containers:
+      - name: cert-checker
+        image: cert-checker:latest
+        imagePullPolicy: IfNotPresent
+        envFrom:
+        - configMapRef:
+            name: cert-checker-env
+        env:
+        - name: CONFIG_FILE
+          value: /etc/cert-checker/sites.conf
+        volumeMounts:
+        - name: config
+          mountPath: /etc/cert-checker
+      volumes:
+      - name: config
+        configMap:
+          name: cert-checker-config
+      restartPolicy: Never
+  backoffLimit: 2
