@@ -19,8 +19,9 @@ This project provisions a basic web application stack on AWS using Terraform.
 ## Quick Start
 
 ```bash
-# configure variables
-cp terraform.tfvars.example terraform.tfvars
+# generate ssh key for ec2 instances
+aws ec2 create-key-pair --key-name digitall-sap-key --query 'KeyMaterial' --output text > digitall-sap-key.pem
+chmod 400 digitall-sap-key.pem
 # edit terraform.tfvars with your values
 
 # deploy
